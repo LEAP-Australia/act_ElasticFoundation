@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension version="1" name="ElasticFoundation">
+    <author>Nishit Joseph @ LEAP Australia Pty Ltd</author>
+    <description>Generate seprate 1-D springs for each direction.</description>
+    <guid>7CC7BB96-5D7E-4F00-BE23-6F25D8AC9893</guid>
+    <script compiled="false" src="main.py" />
+    <interface context="Mechanical">
+        <images>images</images>
+        <toolbar name="ElasticFoundationToolbar" caption="Elastic Foundation">
+            <entry name="ElasticFoundationButton" caption="Elastic Foundation"
+                   icon="ElasticFoundationIcon" userobject="ElasticFoundation">
+            </entry>
+            <separator/>
+            <entry name="ElasticFoundationReactionButton"
+                   caption="Elastic Foundation Reaction"
+                   icon="ElasticFoundationReactionIcon"
+                   userobject="ElasticFoundationReaction">
+            </entry>
+        </toolbar>
+    </interface>
+    <simdata context="Mechanical">
+        <load name="ElasticFoundation" version="1" caption="Elastic Foundation"
+              icon="ElasticFoundationIcon" class="ElasticFoundation">
+            <callbacks>
+                <getcommands location="pre">wrapper_gen_springs</getcommands>
+            </callbacks>
+            <property name="Geometry" caption="Geometry" control="scoping">
+                <attributes selection_filter="face|edge|node" />
+            </property>
+            <propertygroup name="SpringDef" caption="Spring Definition" display="caption">
+                <property name="cs" caption="Coordinate System" control="coordinatesystem_selection"/>
+                <property name="xStiff" caption="X Stiffness" control="float" unit="Stiffness"
+                          isparameter="true"/>
+                <property name="yStiff" caption="Y Stiffness" control="float" unit="Stiffness"
+                          isparameter="true"/>
+                <property name="zStiff" caption="Z Stiffness" control="float" unit="Stiffness"
+                          isparameter="true"/>
+                <propertygroup name="Damping" caption="Enable Damping" display="property" control="select" default="No">
+                    <attributes options="No,Yes" />
+                    <property name="xDamp" caption="X Damping Coeff." control="float"
+                              visibleon="Yes" isparameter="true"/>
+                    <property name="yDamp" caption="Y Damping Coeff." control="float"
+                              visibleon="Yes" isparameter="true"/>
+                    <property name="zDamp" caption="Z Damping Coeff." control="float"
+                              visibleon="Yes"   isparameter="true"/>
+                </propertygroup>
+            </propertygroup>
+            <property name="etNumberX" control="integer" visible="false"/>
+            <property name="id" control="integer" visible="false" default="0"/>
+        </load>
+        <result name="ElasticFoundationReaction" version="1"
+                caption="Elastic Foundation Reaction" icon="ElasticFoundationReactionIcon"
+                location="node" type="scalar">
+        </result>
+    </simdata>
+</extension>
