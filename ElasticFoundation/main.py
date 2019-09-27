@@ -26,6 +26,9 @@ Discription:
 # pylint: disable=unused-argument
 # pylint: disable=import-error
 # pylint: disable=too-many-locals
+# pylint: disable=bare-except
+
+from System.IO import StreamWriter
 
 import ansys
 from units import ConvertUnitToSolverConsistentUnit as solver_unit
@@ -49,12 +52,14 @@ class ElasticFoundation():
 
     def oninit(self, load):
         self.load = load
-        max_id = max([
-            x.Properties['id'].Value
-            for x in self.load.Analysis.GetLoadObjects(self.load.Extension.UniqueId)])
-        self.load.Properties['id'].Value = max_id + 1
+        if load.Properties['id'].Value < 0:
+            max_id = max([
+                x.Properties['id'].Value
+                for x in load.Analysis.GetLoadObjects(load.Extension.UniqueId)])
+            load.Properties['id'].Value = max_id + 1
 
     def gen_springs(self, solver_data, stream):
+        # pylint: disable=too-many-statements
         stream.WriteLine(
             "/com,*********** Elastic Foundation - {0} ***********"
             .format(self.load.Properties['id'].Value))
@@ -73,6 +78,7 @@ class ElasticFoundation():
 
         #Gen Coincident nodes
         cnode_ids = [int(solver_data.GetNewNodeId()) for x in node_ids]
+        node_count = len(cnode_ids)
 
         stream.WriteLine('nblock, 3, , {0}'.format(len(cnode_ids)))
         stream.WriteLine('(1i9,3e25.16e3)')
@@ -111,14 +117,14 @@ class ElasticFoundation():
             fromGeoIds=False)
 
         factor = self.api.Application.InvokeUIThread(
-            lambda: to_solve_unit(self.api, 1.0, 'Length', self.load.Analysis))
-        
+            lambda: to_solve_unit(self.api, 1.0, 'Stiffness', self.load.Analysis))
+
         stream.WriteLine('ET, {0}, COMBIN14, 0, 1, 0'.format(et_x))
         stream.WriteLine(
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_x,
-                self.load.Properties['SpringDef/xStiff'].Value,
+                self.load.Properties['SpringDef/xStiff'].Value/node_count*factor,
                 self.load.Properties['SpringDef/Damping/xDamp'].Value
                 if self.load.Properties['SpringDef/Damping/xDamp'].Value
                 else 0.0))
@@ -129,7 +135,7 @@ class ElasticFoundation():
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_y,
-                self.load.Properties['SpringDef/yStiff'].Value,
+                self.load.Properties['SpringDef/yStiff'].Value/node_count*factor,
                 self.load.Properties['SpringDef/Damping/yDamp'].Value
                 if self.load.Properties['SpringDef/Damping/yDamp'].Value
                 else 0.0))
@@ -140,7 +146,7 @@ class ElasticFoundation():
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_z,
-                self.load.Properties['SpringDef/zStiff'].Value,
+                self.load.Properties['SpringDef/zStiff'].Value/node_count*factor,
                 self.load.Properties['SpringDef/Damping/zDamp'].Value
                 if self.load.Properties['SpringDef/Damping/zDamp'].Value
                 else 0.0))
@@ -170,3 +176,13 @@ class ElasticFoundation():
                     node_id))
         stream.WriteLine('-1')
         stream.WriteLine('D, {0}, ALL, 0.0'.format(comp_ref_name))
+
+        self.load.Properties['nodeFile'].Value = comp_ref_name + '.dat'
+        node_stream = StreamWriter(self.load.Properties['nodeFile'].Value)
+        ansys.createNodeComponent(
+            cnode_ids,
+            comp_ref_name,
+            mesh,
+            node_stream,
+            fromGeoIds=False)
+        node_stream.Close()

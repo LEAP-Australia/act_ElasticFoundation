@@ -46,7 +46,8 @@
                 </propertygroup>
             </propertygroup>
             <property name="etNumberX" control="integer" visible="false"/>
-            <property name="id" control="integer" visible="false" default="0"/>
+            <property name="id" control="integer" visible="false" default="-1"/>
+            <property name="nodeFile" control="text" visible="false" default=""/>
         </load>
         <result name="ElasticFoundationReaction" version="1"
                 caption="Elastic Foundation Reaction" icon="ElasticFoundationReactionIcon"
