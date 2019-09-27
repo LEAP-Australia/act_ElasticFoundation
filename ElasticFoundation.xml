@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<extension version="1" name="ElasticFoundation">
+<extension version="0" minorversion="1" name="ElasticFoundation">
     <author>Nishit Joseph @ LEAP Australia Pty Ltd</author>
     <description>Generate seprate 1-D springs for each direction.</description>
     <guid>7CC7BB96-5D7E-4F00-BE23-6F25D8AC9893</guid>
