@@ -92,7 +92,7 @@ class ElasticFoundation():
                     mesh.NodeById(node_id).X,
                     mesh.NodeById(node_id).Y,
                     mesh.NodeById(node_id).Z)]
-            stream.WriteLine('{0:9d}{1:25.16e}{2:25.16e}{3:25.16e}'
+            stream.WriteLine('{0:9d}{1:18.9e}{2:18.9e}{3:18.9e}'
                              .format(cnode_id, *pos))
         stream.WriteLine('-1')
 
