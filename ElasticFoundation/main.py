@@ -28,7 +28,9 @@ Discription:
 # pylint: disable=too-many-locals
 # pylint: disable=bare-except
 
-from System.IO import StreamWriter
+from os import path
+from System.IO import FileStream, FileMode
+from System.Runtime.Serialization.Formatters.Binary import BinaryFormatter
 
 import ansys
 from units import ConvertUnitToSolverConsistentUnit as solver_unit
@@ -39,6 +41,13 @@ def wrapper_gen_springs(load, solver_data, stream):
     Workaround to call pre commands from object class
     '''
     load.Controller.gen_springs(solver_data, stream)
+
+
+def wrapper_get_reaction(result, stepInfo, collector):
+    '''
+    Workaround to call pre commands from object class
+    '''
+    ExtAPI.Log.WriteError("Wrapper")
 
 
 class ElasticFoundation():
@@ -81,11 +90,14 @@ class ElasticFoundation():
         node_count = len(cnode_ids)
 
         stream.WriteLine('nblock, 3, , {0}'.format(len(cnode_ids)))
-        stream.WriteLine('(1i9,3e25.16e3)')
+        stream.WriteLine('(1i9,3e18.9e3)')
         factor = self.api.Application.InvokeUIThread(
             lambda: solver_unit(self.api, 1.0, mesh.Unit, 'Length', self.load.Analysis))
 
+        post_data = SerializableDictionary[int, int]()
+
         for node_id, cnode_id in zip(node_ids, cnode_ids):
+            post_data[node_id] = cnode_id
             pos = [
                 x * factor
                 for x in (
@@ -177,12 +189,94 @@ class ElasticFoundation():
         stream.WriteLine('-1')
         stream.WriteLine('D, {0}, ALL, 0.0'.format(comp_ref_name))
 
-        self.load.Properties['nodeFile'].Value = comp_ref_name + '.dat'
-        node_stream = StreamWriter(self.load.Properties['nodeFile'].Value)
-        ansys.createNodeComponent(
-            cnode_ids,
-            comp_ref_name,
-            mesh,
-            node_stream,
-            fromGeoIds=False)
-        node_stream.Close()
+        self.load.Properties['nodeFile'].Value = comp_ref_name + '.bin'
+        with FileStream(self.load.Properties['nodeFile'].Value, FileMode.Create) as nstream:
+            formatter = BinaryFormatter()
+            formatter.Serialize(nstream, post_data)
+
+
+class SelectElasticFoundation():
+    # pylint: disable=no-self-use
+    def __init__(self, api, entity, prop):
+        self.api = api
+
+    def get_elastic_foundations(self, obj):
+        # pylint: disable=broad-except
+        # pylint: disable=unused-variable
+        # pylint: disable=bare-except
+        results = []
+        analysis = obj.Analysis
+        for child in analysis.GetLoadObjects(self.api.ExtensionManager.CurrentExtension):
+            results.append(child)
+        return results
+
+    def getvalue(self, obj, prop, val):
+        if val is None:
+            return None
+        results = self.get_elastic_foundations(obj)
+        for res in results:
+            if res.Id == int(val):
+                return res
+        return None
+
+    def onactivate(self, obj, prop):
+        prop.Options.Clear()
+        results = self.get_elastic_foundations(obj)
+        for res in results:
+            prop.Options.Add(str(res.Id))
+
+    def value2string(self, obj, prop, val):
+        result = None
+        if val is not None:
+            results = self.get_elastic_foundations(obj)
+            for res in results:
+                if res.Id == int(val):
+                    result = res
+                    break
+        if result is None:
+            return ''
+        return result.Caption
+
+    def isvalid(self, obj, prop):
+        return prop.Value is not None
+
+
+class ElasticFoundationReaction():
+    '''
+    Get Reaction
+    '''
+    # pylint: disable=missing-docstring
+    def __init__(self, extApi, result):
+        self.api = extApi
+        self.result = None
+
+    def oninit(self, result):
+        self.result = result
+
+    def evaluate(self, result, step_info, collector):
+        inf = float("inf")
+        load = self.result.Properties['ElasticFoundationObj'].Value
+        comp_file = path.join(self.result.Analysis.WorkingDir, load.Properties['nodeFile'].Value)
+
+        with FileStream(comp_file, FileMode.Open) as nstream:
+            formatter = BinaryFormatter()
+            nodes = formatter.Deserialize(nstream)
+      
+        with self.result.Analysis.GetResultsData() as reader:
+            reader.CurrentResultSet = step_info.Set
+            forces = reader.GetResult('F')
+            fx = fy = fz = 0.0
+            for k in nodes.Keys:
+                node = nodes[k]
+                nfx, nfy, nfz = forces.GetNodeValues(node)
+                fx += nfx
+                fy += nfy
+                fz += nfz
+                collector.SetValues(k, (nfx, nfy, nfz))
+            self.result.Properties['ReactSummary/x'].Value = fx
+            self.result.Properties['ReactSummary/y'].Value = fy
+            self.result.Properties['ReactSummary/z'].Value = fz
+            self.result.Properties['ReactSummary/total'].Value = sqrt(fx**2 + fy**2 + fz**2)
+            
+        return float("inf")
+

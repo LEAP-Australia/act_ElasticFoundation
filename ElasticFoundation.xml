@@ -4,6 +4,12 @@
     <description>Generate seprate 1-D springs for each direction.</description>
     <guid>7CC7BB96-5D7E-4F00-BE23-6F25D8AC9893</guid>
     <script compiled="false" src="main.py" />
+    <templates>
+        <controltemplate name="ef_object_selection" version="1">
+	    <property name="ElasticFoundationObjSelection" caption="Foundation Selection"
+                      control="select" class="SelectElasticFoundation" />
+        </controltemplate>
+    </templates>
     <interface context="Mechanical">
         <images>images</images>
         <toolbar name="ElasticFoundationToolbar" caption="Elastic Foundation">
@@ -13,7 +19,7 @@
             <separator/>
             <entry name="ElasticFoundationReactionButton"
                    caption="Elastic Foundation Reaction"
-                   icon="ElasticFoundationReactionIcon"
+                   icon="ElasticFoundationIcon"
                    userobject="ElasticFoundationReaction">
             </entry>
         </toolbar>
@@ -50,8 +56,24 @@
             <property name="nodeFile" control="text" visible="false" default=""/>
         </load>
         <result name="ElasticFoundationReaction" version="1"
-                caption="Elastic Foundation Reaction" icon="ElasticFoundationReactionIcon"
-                location="node" type="scalar">
+                caption="Elastic Foundation Reaction" icon="ElasticFoundationIcon"
+                location="node" class="ElasticFoundationReaction" type="vector">
+            <!-- <callbacks> -->
+            <!--     <evaluate>wrapper_get_reaction</evaluate> -->
+            <!-- </callbacks> -->
+            <property name="Geometry" caption="Geometry" control="scoping" visible="false" />
+            <!-- <property name="Geometry" caption="Geometry" control="scoping" />              -->
+            <property name="ElasticFoundationObj" caption="BC Selection" control="ef_object_selection"/>
+            <propertygroup name="ReactSummary" caption="Reaction Summary" display="caption">
+                <property name="x" caption="X Axis" control="float" unit="Force" readonly="true"
+                          isparameter="true" default="NaN [N]"/>
+                <property name="y" caption="Y Axis" control="float" unit="Force" readonly="true"
+                          isparameter="true" default="NaN [N]"/>
+                <property name="z" caption="Z Axis" control="float" unit="Force" readonly="true"
+                          isparameter="true" default="NaN [N]"/>
+                <property name="total" caption="Total" control="float" unit="Force" readonly="true"
+                          isparameter="true" default="NaN [N]"/>
+            </propertygroup>
         </result>
     </simdata>
 </extension>
