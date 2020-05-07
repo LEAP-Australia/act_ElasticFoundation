@@ -55,7 +55,7 @@
             <property name="id" control="integer" visible="false" default="-1"/>
             <property name="nodeFile" control="text" visible="false" default=""/>
         </load>
-        <result name="ElasticFoundationReaction" version="1"
+        <result name="ElasticFoundationReaction" version="1" unit="Force"
                 caption="Elastic Foundation Reaction" icon="ElasticFoundationIcon"
                 location="node" class="ElasticFoundationReaction" type="vector">
             <!-- <callbacks> -->
