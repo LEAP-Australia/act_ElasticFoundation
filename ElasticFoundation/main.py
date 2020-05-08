@@ -28,6 +28,7 @@ Discription:
 # pylint: disable=too-many-locals
 # pylint: disable=bare-except
 
+import csv
 from os import path
 from System.IO import FileStream, FileMode
 from System.Runtime.Serialization.Formatters.Binary import BinaryFormatter
@@ -249,34 +250,51 @@ class ElasticFoundationReaction():
     def __init__(self, extApi, result):
         self.api = extApi
         self.result = None
+        self.steps_completed = []
 
     def oninit(self, result):
         self.result = result
+        self.steps_completed = []
+
+    def oncleardata(self, result):
+        self.steps_completed = []
 
     def evaluate(self, result, step_info, collector):
         inf = float("inf")
         load = self.result.Properties['ElasticFoundationObj'].Value
-        comp_file = path.join(self.result.Analysis.WorkingDir, load.Properties['nodeFile'].Value)
+        comp_file = path.join(
+            ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.WorkingDir),
+            load.Properties['nodeFile'].Value)
 
         with FileStream(comp_file, FileMode.Open) as nstream:
             formatter = BinaryFormatter()
             nodes = formatter.Deserialize(nstream)
-      
-        with self.result.Analysis.GetResultsData() as reader:
-            reader.CurrentResultSet = step_info.Set
-            forces = reader.GetResult('F')
-            fx = fy = fz = 0.0
-            for k in nodes.Keys:
-                node = nodes[k]
-                nfx, nfy, nfz = forces.GetNodeValues(node)
-                fx += nfx
-                fy += nfy
-                fz += nfz
-                collector.SetValues(k, (nfx, nfy, nfz))
-            self.result.Properties['ReactSummary/x'].Value = fx
-            self.result.Properties['ReactSummary/y'].Value = fy
-            self.result.Properties['ReactSummary/z'].Value = fz
-            self.result.Properties['ReactSummary/total'].Value = sqrt(fx**2 + fy**2 + fz**2)
-            
-        return float("inf")
+
+        csv_outfile = path.join(
+            ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.WorkingDir),
+            self.result.Caption.strip() + '.csv')
+        with open(csv_outfile, 'wb' if step_info.Set == 1 else 'ab' ) as rfile:
+            writer = csv.writer(rfile)
+            if not self.steps_completed:
+                writer.writerow(['Set', 'Fx', 'Fy', 'Fz', 'Total'])
+            with ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.GetResultsData()) as reader:
+                reader.CurrentResultSet = step_info.Set
+                forces = reader.GetResult('F')
+                fx = fy = fz = 0.0
+                for k in nodes.Keys:
+                    node = nodes[k]
+                    nfx, nfy, nfz = forces.GetNodeValues(node)
+                    fx += nfx
+                    fy += nfy
+                    fz += nfz
+                    collector.SetValues(k, (nfx, nfy, nfz))
+                self.result.Properties['ReactSummary/x'].Value = fx
+                self.result.Properties['ReactSummary/y'].Value = fy
+                self.result.Properties['ReactSummary/z'].Value = fz
+                total = sqrt(fx**2 + fy**2 + fz**2)
+                self.result.Properties['ReactSummary/total'].Value = total
+                if step_info.Set not in self.steps_completed:
+                    writer.writerow([step_info.Set, fx, fy, fz, total])
+                    self.steps_completed.append(step_info.Set)
+
 
