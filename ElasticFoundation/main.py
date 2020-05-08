@@ -296,5 +296,3 @@ class ElasticFoundationReaction():
                 if step_info.Set not in self.steps_completed:
                     writer.writerow([step_info.Set, fx, fy, fz, total])
                     self.steps_completed.append(step_info.Set)
-
-
