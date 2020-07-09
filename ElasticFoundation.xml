@@ -6,7 +6,7 @@
     <script compiled="false" src="main.py" />
     <templates>
         <controltemplate name="ef_object_selection" version="1">
-	    <property name="ElasticFoundationObjSelection" caption="Foundation Selection"
+            <property name="ElasticFoundationObjSelection" caption="Foundation Selection"
                       control="select" class="SelectElasticFoundation" />
         </controltemplate>
     </templates>
@@ -14,14 +14,12 @@
         <images>images</images>
         <toolbar name="ElasticFoundationToolbar" caption="Elastic Foundation">
             <entry name="ElasticFoundationButton" caption="Elastic Foundation"
-                   icon="ElasticFoundationIcon" userobject="ElasticFoundation">
-            </entry>
+                   icon="ElasticFoundationIcon" userobject="ElasticFoundation"></entry>
             <separator/>
             <entry name="ElasticFoundationReactionButton"
                    caption="Elastic Foundation Reaction"
                    icon="ElasticFoundationIcon"
-                   userobject="ElasticFoundationReaction">
-            </entry>
+                   userobject="ElasticFoundationReaction"></entry>
         </toolbar>
     </interface>
     <simdata context="Mechanical">
