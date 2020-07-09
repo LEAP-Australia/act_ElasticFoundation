@@ -15,6 +15,8 @@
         <toolbar name="ElasticFoundationToolbar" caption="Elastic Foundation">
             <entry name="ElasticFoundationButton" caption="Elastic Foundation"
                    icon="ElasticFoundationIcon" userobject="ElasticFoundation"></entry>
+            <entry name="ElasticFoundationExpButton" caption="Elastic Foundation Expression"
+                   icon="spring" userobject="ElasticFoundationExp"></entry>
             <separator/>
             <entry name="ElasticFoundationReactionButton"
                    caption="Elastic Foundation Reaction"
@@ -48,6 +50,41 @@
                     <property name="zDamp" caption="Z Damping Coeff." control="float"
                               visibleon="Yes"   isparameter="true"/>
                 </propertygroup>
+            </propertygroup>
+            <property name="etNumberX" control="integer" visible="false"/>
+            <property name="id" control="integer" visible="false" default="-1"/>
+            <property name="nodeFile" control="text" visible="false" default=""/>
+        </load>
+        <load name="ElasticFoundationExp" version="1" caption="Elastic Foundation Expression"
+              icon="spring" class="ElasticFoundation">
+            <callbacks>
+                <getcommands location="pre">wrapper_gen_springs</getcommands>
+            </callbacks>
+            <property name="Geometry" caption="Geometry" control="scoping">
+                <attributes selection_filter="face|edge|node" />
+            </property>
+            <propertygroup name="GrpCustExp" caption="Spring Definition" display="caption">
+                <property name="cs" caption="Coordinate System" control="coordinatesystem_selection"/>
+                <property name="unitsys" caption="Expression Units" control="select">
+                    <callbacks>
+                        <onadd>addunitsys</onadd>
+                    </callbacks>
+                </property>
+                <property name="DirectionX"  caption="Expression in the X" control="string">
+                    <callbacks>
+                        <isvalid>validexp</isvalid>
+                    </callbacks>
+                </property>
+                <property name="DirectionY" caption="Expression in the Y" control="string">
+                    <callbacks>
+                        <isvalid>validexp</isvalid>
+                    </callbacks>
+                </property>
+                <property name="DirectionZ" caption="Expression in the Z" control="string">
+                    <callbacks>
+                        <isvalid>validexp</isvalid>
+                    </callbacks>
+                </property>
             </propertygroup>
             <property name="etNumberX" control="integer" visible="false"/>
             <property name="id" control="integer" visible="false" default="-1"/>

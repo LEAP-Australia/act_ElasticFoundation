@@ -36,6 +36,26 @@ from System.Runtime.Serialization.Formatters.Binary import BinaryFormatter
 import ansys
 from units import ConvertUnitToSolverConsistentUnit as solver_unit
 from units import ConvertToSolverConsistentUnit as to_solve_unit
+import Ansys.Core.Units as AnsUnits
+
+
+def validexp(load, prop):
+    x = 29
+    y = 10
+    z = 75
+    try:
+        value = float(eval(prop.Value))
+        return True
+    except:
+        pass
+    return False
+
+def addunitsys(load, prop):
+    prop.Options.Clear()
+    rejects = ['DS_','EXD_','AD_', 'Custom']
+    for unitname in AnsUnits.UnitsManager.GetUnitSystemNames():
+        if not any([reject in unitname for reject in rejects]):
+            prop.Options.Add(unitname)
 
 def wrapper_gen_springs(load, solver_data, stream):
     '''
@@ -49,7 +69,6 @@ def wrapper_get_reaction(result, stepInfo, collector):
     Workaround to call pre commands from object class
     '''
     ExtAPI.Log.WriteError("Wrapper")
-
 
 class ElasticFoundation():
     '''
