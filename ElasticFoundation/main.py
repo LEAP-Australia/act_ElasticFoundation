@@ -37,7 +37,7 @@ import ansys
 from units import ConvertUnitToSolverConsistentUnit as solver_unit
 from units import ConvertToSolverConsistentUnit as to_solve_unit
 import Ansys.Core.Units as AnsUnits
-
+from units import ConvertUnit
 
 def validexp(load, prop):
     x = 29
@@ -50,12 +50,14 @@ def validexp(load, prop):
         pass
     return False
 
+
 def addunitsys(load, prop):
     prop.Options.Clear()
-    rejects = ['DS_','EXD_','AD_', 'Custom']
+    rejects = ['DS_', 'EXD_', 'AD_', 'Custom']
     for unitname in AnsUnits.UnitsManager.GetUnitSystemNames():
         if not any([reject in unitname for reject in rejects]):
             prop.Options.Add(unitname)
+
 
 def wrapper_gen_springs(load, solver_data, stream):
     '''
@@ -70,11 +72,13 @@ def wrapper_get_reaction(result, stepInfo, collector):
     '''
     ExtAPI.Log.WriteError("Wrapper")
 
+
 class ElasticFoundation():
     '''
     Elastic function load object
     '''
     # pylint: disable=missing-docstring
+
     def __init__(self, api, load):
         self.api = api
         self.load = None
@@ -105,7 +109,7 @@ class ElasticFoundation():
 
         node_ids = list(set(node_ids))
 
-        #Gen Coincident nodes
+        # Gen Coincident nodes
         cnode_ids = [int(solver_data.GetNewNodeId()) for x in node_ids]
         node_count = len(cnode_ids)
 
@@ -132,7 +136,8 @@ class ElasticFoundation():
         if self.load.Properties['Geometry/DefineBy'].Value == 'Named Selection':
             comp_mob_name = self.load.Properties['Geometry'].Value.Name
         else:
-            comp_mob_name = 'elasfound_targ_{0}'.format(self.load.Properties['id'].Value)
+            comp_mob_name = 'elasfound_targ_{0}'.format(
+                self.load.Properties['id'].Value)
             ansys.createNodeComponent(
                 node_ids,
                 comp_mob_name,
@@ -140,7 +145,8 @@ class ElasticFoundation():
                 stream,
                 fromGeoIds=False)
 
-        comp_ref_name = 'elasfound_ref_{0}'.format(self.load.Properties['id'].Value)
+        comp_ref_name = 'elasfound_ref_{0}'.format(
+            self.load.Properties['id'].Value)
         ansys.createNodeComponent(
             cnode_ids,
             comp_ref_name,
@@ -156,7 +162,8 @@ class ElasticFoundation():
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_x,
-                self.load.Properties['SpringDef/xStiff'].Value/node_count*factor,
+                self.load.Properties['SpringDef/xStiff'].Value /
+                node_count*factor,
                 self.load.Properties['SpringDef/Damping/xDamp'].Value
                 if self.load.Properties['SpringDef/Damping/xDamp'].Value
                 else 0.0))
@@ -167,7 +174,8 @@ class ElasticFoundation():
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_y,
-                self.load.Properties['SpringDef/yStiff'].Value/node_count*factor,
+                self.load.Properties['SpringDef/yStiff'].Value /
+                node_count*factor,
                 self.load.Properties['SpringDef/Damping/yDamp'].Value
                 if self.load.Properties['SpringDef/Damping/yDamp'].Value
                 else 0.0))
@@ -178,7 +186,8 @@ class ElasticFoundation():
             'R, {0},{1:25.16e},{2:25.16e}'
             .format(
                 et_z,
-                self.load.Properties['SpringDef/zStiff'].Value/node_count*factor,
+                self.load.Properties['SpringDef/zStiff'].Value /
+                node_count*factor,
                 self.load.Properties['SpringDef/Damping/zDamp'].Value
                 if self.load.Properties['SpringDef/Damping/zDamp'].Value
                 else 0.0))
@@ -266,6 +275,7 @@ class ElasticFoundationReaction():
     Get Reaction
     '''
     # pylint: disable=missing-docstring
+
     def __init__(self, extApi, result):
         self.api = extApi
         self.result = None
@@ -282,7 +292,8 @@ class ElasticFoundationReaction():
         inf = float("inf")
         load = self.result.Properties['ElasticFoundationObj'].Value
         comp_file = path.join(
-            ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.WorkingDir),
+            ExtAPI.Application.InvokeUIThread(
+                lambda: self.result.Analysis.WorkingDir),
             load.Properties['nodeFile'].Value)
 
         with FileStream(comp_file, FileMode.Open) as nstream:
@@ -290,9 +301,10 @@ class ElasticFoundationReaction():
             nodes = formatter.Deserialize(nstream)
 
         csv_outfile = path.join(
-            ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.WorkingDir),
+            ExtAPI.Application.InvokeUIThread(
+                lambda: self.result.Analysis.WorkingDir),
             self.result.Caption.strip() + '.csv')
-        with open(csv_outfile, 'wb' if step_info.Set == 1 else 'ab' ) as rfile:
+        with open(csv_outfile, 'wb' if step_info.Set == 1 else 'ab') as rfile:
             writer = csv.writer(rfile)
             if not self.steps_completed:
                 writer.writerow(['Set', 'Fx', 'Fy', 'Fz', 'Total'])
@@ -315,3 +327,133 @@ class ElasticFoundationReaction():
                 if step_info.Set not in self.steps_completed:
                     writer.writerow([step_info.Set, fx, fy, fz, total])
                     self.steps_completed.append(step_info.Set)
+
+
+class ElasticFoundationExp(ElasticFoundation):
+    def gen_springs(self, solver_data, stream):
+        stream.WriteLine(
+            "/com,*********** Elastic Foundation Expression - {0} ***********"
+            .format(self.load.Properties['id'].Value))
+
+        mesh = self.load.Analysis.MeshData
+
+        # Get Node Ids
+        node_ids = []
+        for geo_id in self.load.Properties['Geometry'].Value.Ids:
+            node_ids += mesh.MeshRegionById(geo_id).NodeIds
+
+        node_ids = list(set(node_ids))
+
+        # Gen Coincident nodes
+        cnode_ids = [int(solver_data.GetNewNodeId()) for x in node_ids]
+
+        stream.WriteLine('nblock, 3, , {0}'.format(len(cnode_ids)))
+        stream.WriteLine('(1i9,3e18.9e3)')
+
+        factor = solver_unit(
+            self.api, 1.0, mesh.Unit, 'Length', self.load.Analysis)
+
+        post_data = SerializableDictionary[int, int]()
+
+        for node_id, cnode_id in zip(node_ids, cnode_ids):
+            post_data[node_id] = cnode_id
+            pos = [
+                x * factor
+                for x in (
+                    mesh.NodeById(node_id).X,
+                    mesh.NodeById(node_id).Y,
+                    mesh.NodeById(node_id).Z)]
+            stream.WriteLine('{0:9d}{1:18.9e}{2:18.9e}{3:18.9e}'
+                             .format(cnode_id, *pos))
+        stream.WriteLine('-1')
+
+        # Check to see if using Name Selection
+        if self.load.Properties['Geometry/DefineBy'].Value == 'Named Selection':
+            comp_mob_name = self.load.Properties['Geometry'].Value.Name
+        else:
+            comp_mob_name = 'elasfound_targ_{0}'.format(
+                self.load.Properties['id'].Value)
+            ansys.createNodeComponent(
+                node_ids,
+                comp_mob_name,
+                mesh,
+                stream,
+                fromGeoIds=False)
+        
+        comp_ref_name = 'elasfound_ref_{0}'.format(
+            self.load.Properties['id'].Value)
+        ansys.createNodeComponent(
+            cnode_ids,
+            comp_ref_name,
+            mesh,
+            stream,
+            fromGeoIds=False)
+
+        stiff_factor = solver_unit(
+            self.api, 1.0, AnsUnits.UnitsManager.GetQuantityUnitForUnitSystem(self.load.Properties['GrpCustExp/unitsys'].Value, 'Stiffness'), 'Stiffness' , self.load.Analysis)
+
+        exp_factor = ConvertUnit(
+            1.0, mesh.Unit, AnsUnits.UnitsManager.GetQuantityUnitForUnitSystem(self.load.Properties['GrpCustExp/unitsys'].Value, 'Length'), 'Length')
+
+        x_exp = self.load.Properties['GrpCustExp/DirectionX'].Value
+        y_exp = self.load.Properties['GrpCustExp/DirectionY'].Value
+        z_exp = self.load.Properties['GrpCustExp/DirectionZ'].Value
+
+     
+        for node_id, cnode_id in zip(node_ids, cnode_ids):
+            et_x = solver_data.GetNewElementType()
+            et_y = solver_data.GetNewElementType()
+            et_z = solver_data.GetNewElementType()
+            
+            stream.WriteLine('ET, {0}, COMBIN14, 0, 1, 0'.format(et_x))
+            stream.WriteLine('ET, {0}, COMBIN14, 0, 2, 0'.format(et_y))
+            stream.WriteLine('ET, {0}, COMBIN14, 0, 3, 0'.format(et_z))
+
+            x = exp_factor * mesh.NodeById(node_id).X
+            y = exp_factor * mesh.NodeById(node_id).Y
+            z = exp_factor * mesh.NodeById(node_id).Z
+            
+            x_stiff = float(eval(x_exp)) * stiff_factor
+            y_stiff = float(eval(y_exp)) * stiff_factor
+            z_stiff = float(eval(z_exp)) * stiff_factor
+
+            stream.WriteLine('R, {0},{1:25.16e}'.format(et_x, x_stiff))
+            stream.WriteLine('R, {0},{1:25.16e}'.format(et_y, y_stiff))
+            stream.WriteLine('R, {0},{1:25.16e}'.format(et_z, z_stiff))
+
+            stream.WriteLine('TYPE, {0}'.format(et_x))
+            stream.WriteLine('MAT, {0}'.format(et_x))
+            stream.WriteLine('REAL, {0}'.format(et_x))
+
+            element_id = int(solver_data.GetNewElementId())
+            stream.WriteLine('EN, {0}, {1}, {2}'.format(element_id, node_id, cnode_id))
+
+            stream.WriteLine('TYPE, {0}'.format(et_y))
+            stream.WriteLine('MAT, {0}'.format(et_y))
+            stream.WriteLine('REAL, {0}'.format(et_y))
+
+            element_id = int(solver_data.GetNewElementId())
+            stream.WriteLine('EN, {0}, {1}, {2}'.format(element_id, node_id, cnode_id))
+
+            stream.WriteLine('TYPE, {0}'.format(et_z))
+            stream.WriteLine('MAT, {0}'.format(et_z))
+            stream.WriteLine('REAL, {0}'.format(et_z))
+
+            element_id = int(solver_data.GetNewElementId())
+            stream.WriteLine('EN, {0}, {1}, {2}'.format(element_id, node_id, cnode_id))
+
+        stream.WriteLine('CMSEL, S, {0}'.format(comp_mob_name))
+        stream.WriteLine('CMSEL, A, {0}'.format(comp_ref_name))
+        stream.WriteLine('CSYS, {0}'.format(
+            self.api.Application.InvokeUIThread(
+                lambda: self.load.Properties['GrpCustExp/cs'].Value.CoordinateSystemID)))
+        stream.WriteLine('NROTAT, ALL')
+        stream.WriteLine('ALLSELL, ALL')
+        stream.WriteLine()
+
+        stream.WriteLine('D, {0}, ALL, 0.0'.format(comp_ref_name))
+        
+        self.load.Properties['nodeFile'].Value = comp_ref_name + '.bin'
+        with FileStream(self.load.Properties['nodeFile'].Value, FileMode.Create) as nstream:
+            formatter = BinaryFormatter()
+            formatter.Serialize(nstream, post_data)

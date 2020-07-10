@@ -2,7 +2,7 @@
 <extension version="1" minorversion="1" name="ElasticFoundation">
     <author>Nishit Joseph @ LEAP Australia Pty Ltd</author>
     <description>Generate seprate 1-D springs for each direction.</description>
-    <guid>7CC7BB96-5D7E-4F00-BE23-6F25D8AC9893</guid>
+    <guid>7cc7bb96-5d7e-4f00-be23-6f25d8ac9893</guid>
     <script compiled="false" src="main.py" />
     <templates>
         <controltemplate name="ef_object_selection" version="1">
@@ -16,7 +16,7 @@
             <entry name="ElasticFoundationButton" caption="Elastic Foundation"
                    icon="ElasticFoundationIcon" userobject="ElasticFoundation"></entry>
             <entry name="ElasticFoundationExpButton" caption="Elastic Foundation Expression"
-                   icon="spring" userobject="ElasticFoundationExp"></entry>
+                   icon="ElasticFoundationIcon" userobject="ElasticFoundationExp"></entry>
             <separator/>
             <entry name="ElasticFoundationReactionButton"
                    caption="Elastic Foundation Reaction"
@@ -56,7 +56,7 @@
             <property name="nodeFile" control="text" visible="false" default=""/>
         </load>
         <load name="ElasticFoundationExp" version="1" caption="Elastic Foundation Expression"
-              icon="spring" class="ElasticFoundation">
+              icon="ElasticFoundationIcon" class="ElasticFoundationExp">
             <callbacks>
                 <getcommands location="pre">wrapper_gen_springs</getcommands>
             </callbacks>
