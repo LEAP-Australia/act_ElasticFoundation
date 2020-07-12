@@ -41,7 +41,8 @@
                           isparameter="true"/>
                 <property name="zStiff" caption="Z Stiffness" control="float" unit="Stiffness"
                           isparameter="true"/>
-                <propertygroup name="Damping" caption="Enable Damping" display="property" control="select" default="No">
+                <propertygroup name="Damping" caption="Enable Damping" display="property"
+                               control="select" default="No">
                     <attributes options="No,Yes" />
                     <property name="xDamp" caption="X Damping Coeff." control="float"
                               visibleon="Yes" isparameter="true"/>
@@ -98,7 +99,8 @@
             <!-- </callbacks> -->
             <property name="Geometry" caption="Geometry" control="scoping" visible="false" />
             <!-- <property name="Geometry" caption="Geometry" control="scoping" />              -->
-            <property name="ElasticFoundationObj" caption="BC Selection" control="ef_object_selection"/>
+            <property name="ElasticFoundationObj" caption="BC Selection"
+                      control="ef_object_selection"/>
             <propertygroup name="ReactSummary" caption="Reaction Summary" display="caption">
                 <property name="x" caption="X Axis" control="float" unit="Force" readonly="true"
                           isparameter="true" default="NaN [N]"/>
