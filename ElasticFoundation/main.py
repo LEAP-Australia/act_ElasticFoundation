@@ -27,22 +27,34 @@ Discription:
 # pylint: disable=import-error
 # pylint: disable=too-many-locals
 # pylint: disable=bare-except
+# pylint: disable=unnecessary-lambda
 
 import csv
 from os import path
-from System.IO import FileStream, FileMode
-from System.Runtime.Serialization.Formatters.Binary import BinaryFormatter
+import math
+import random as rand
 
 import ansys
 from units import ConvertUnitToSolverConsistentUnit as solver_unit
 from units import ConvertToSolverConsistentUnit as to_solve_unit
-import Ansys.Core.Units as AnsUnits
 from units import ConvertUnit
 
+from System.IO import FileStream, FileMode
+from System.Runtime.Serialization.Formatters.Binary import BinaryFormatter
+
+import Ansys.Core.Units as AnsUnits
+
+
 def validexp(load, prop):
-    x = 29
-    y = 10
-    z = 75
+    '''
+    Validate string as math expression for given x, y, & z
+    '''
+    # pylint: disable=invalid-name
+    # pylint: disable=unused-variable
+    # pylint: disable=eval-used
+    x = float(rand.randint(-500, 500))
+    y = float(rand.randint(-500, 500))
+    z = float(rand.randint(-500, 500))
     try:
         value = float(eval(prop.Value))
         return True
@@ -52,6 +64,9 @@ def validexp(load, prop):
 
 
 def addunitsys(load, prop):
+    '''
+    Added unit system names to property
+    '''
     prop.Options.Clear()
     rejects = ['DS_', 'EXD_', 'AD_', 'Custom']
     for unitname in AnsUnits.UnitsManager.GetUnitSystemNames():
@@ -66,7 +81,7 @@ def wrapper_gen_springs(load, solver_data, stream):
     load.Controller.gen_springs(solver_data, stream)
 
 
-def wrapper_get_reaction(result, stepInfo, collector):
+def wrapper_get_reaction(result, step_info, collector):
     '''
     Workaround to call pre commands from object class
     '''
@@ -91,15 +106,7 @@ class ElasticFoundation():
                 for x in load.Analysis.GetLoadObjects(load.Extension.UniqueId)])
             load.Properties['id'].Value = max_id + 1
 
-    def gen_springs(self, solver_data, stream):
-        # pylint: disable=too-many-statements
-        stream.WriteLine(
-            "/com,*********** Elastic Foundation - {0} ***********"
-            .format(self.load.Properties['id'].Value))
-        et_x = solver_data.GetNewElementType()
-        et_y = solver_data.GetNewElementType()
-        et_z = solver_data.GetNewElementType()
-
+    def create_coincident_nodes(self, solver_data, stream):
         mesh = self.load.Analysis.MeshData
 
         # Get Node Ids
@@ -111,17 +118,14 @@ class ElasticFoundation():
 
         # Gen Coincident nodes
         cnode_ids = [int(solver_data.GetNewNodeId()) for x in node_ids]
-        node_count = len(cnode_ids)
 
         stream.WriteLine('nblock, 3, , {0}'.format(len(cnode_ids)))
         stream.WriteLine('(1i9,3e18.9e3)')
+
         factor = self.api.Application.InvokeUIThread(
             lambda: solver_unit(self.api, 1.0, mesh.Unit, 'Length', self.load.Analysis))
 
-        post_data = SerializableDictionary[int, int]()
-
         for node_id, cnode_id in zip(node_ids, cnode_ids):
-            post_data[node_id] = cnode_id
             pos = [
                 x * factor
                 for x in (
@@ -131,7 +135,10 @@ class ElasticFoundation():
             stream.WriteLine('{0:9d}{1:18.9e}{2:18.9e}{3:18.9e}'
                              .format(cnode_id, *pos))
         stream.WriteLine('-1')
+        return node_ids, cnode_ids
 
+    def create_components(self, node_ids, cnode_ids, stream):
+        mesh = self.load.Analysis.MeshData
         # Check to see if using Name Selection
         if self.load.Properties['Geometry/DefineBy'].Value == 'Named Selection':
             comp_mob_name = self.load.Properties['Geometry'].Value.Name
@@ -153,9 +160,17 @@ class ElasticFoundation():
             mesh,
             stream,
             fromGeoIds=False)
+        return comp_mob_name, comp_ref_name
+
+    def create_elements(self, solver_data, node_ids, cnode_ids, stream):
+        et_x = solver_data.GetNewElementType()
+        et_y = solver_data.GetNewElementType()
+        et_z = solver_data.GetNewElementType()
 
         factor = self.api.Application.InvokeUIThread(
             lambda: to_solve_unit(self.api, 1.0, 'Stiffness', self.load.Analysis))
+
+        node_count = float(len(node_ids))
 
         stream.WriteLine('ET, {0}, COMBIN14, 0, 1, 0'.format(et_x))
         stream.WriteLine(
@@ -193,15 +208,6 @@ class ElasticFoundation():
                 else 0.0))
         stream.WriteLine()
 
-        stream.WriteLine('CMSEL, S, {0}'.format(comp_mob_name))
-        stream.WriteLine('CMSEL, A, {0}'.format(comp_ref_name))
-        stream.WriteLine('CSYS, {0}'.format(
-            self.api.Application.InvokeUIThread(
-                lambda: self.load.Properties['SpringDef/cs'].Value.CoordinateSystemID)))
-        stream.WriteLine('NROTAT, ALL')
-        stream.WriteLine('ALLSELL, ALL')
-        stream.WriteLine()
-
         stream.WriteLine('EBLOCK,19,SOLID')
         stream.WriteLine('(19i9)')
         line = '{0:9d}' * 4 + '{1:9d}' * 4 + '{2:9d}{3:9d}{4:9d}{5:9d}{6:9d}'
@@ -216,7 +222,33 @@ class ElasticFoundation():
                     cnode_id,
                     node_id))
         stream.WriteLine('-1')
+
+    def gen_springs(self, solver_data, stream):
+        # pylint: disable=too-many-statements
+        stream.WriteLine(
+            "/com,*********** Elastic Foundation - {0} ***********"
+            .format(self.load.Properties['id'].Value))
+
+        node_ids, cnode_ids = self.create_coincident_nodes(solver_data, stream)
+        comp_mob_name, comp_ref_name = self.create_components(node_ids, cnode_ids, stream)
+
+        self.create_elements(solver_data, node_ids, cnode_ids, stream)
+
+        stream.WriteLine('CMSEL, S, {0}'.format(comp_mob_name))
+        stream.WriteLine('CMSEL, A, {0}'.format(comp_ref_name))
+        stream.WriteLine('CSYS, {0}'.format(
+            self.api.Application.InvokeUIThread(
+                lambda: self.load.Properties['SpringDef/cs'].Value.CoordinateSystemID)))
+        stream.WriteLine('NROTAT, ALL')
+        stream.WriteLine('ALLSELL, ALL')
+        stream.WriteLine()
+
         stream.WriteLine('D, {0}, ALL, 0.0'.format(comp_ref_name))
+
+        post_data = SerializableDictionary[int, int]()
+
+        for node_id, cnode_id in zip(node_ids, cnode_ids):
+            post_data[node_id] = cnode_id
 
         self.load.Properties['nodeFile'].Value = comp_ref_name + '.bin'
         with FileStream(self.load.Properties['nodeFile'].Value, FileMode.Create) as nstream:
@@ -225,7 +257,11 @@ class ElasticFoundation():
 
 
 class SelectElasticFoundation():
+    '''
+    Custom property class to filter ElasticFoundation Objects
+    '''
     # pylint: disable=no-self-use
+    # pylint: disable=missing-function-docstring
     def __init__(self, api, entity, prop):
         self.api = api
 
@@ -289,7 +325,7 @@ class ElasticFoundationReaction():
         self.steps_completed = []
 
     def evaluate(self, result, step_info, collector):
-        inf = float("inf")
+        # pylint: disable=invalid-name
         load = self.result.Properties['ElasticFoundationObj'].Value
         comp_file = path.join(
             ExtAPI.Application.InvokeUIThread(
@@ -308,7 +344,8 @@ class ElasticFoundationReaction():
             writer = csv.writer(rfile)
             if not self.steps_completed:
                 writer.writerow(['Set', 'Fx', 'Fy', 'Fz', 'Total'])
-            with ExtAPI.Application.InvokeUIThread(lambda: self.result.Analysis.GetResultsData()) as reader:
+            with ExtAPI.Application.InvokeUIThread(
+                    lambda: self.result.Analysis.GetResultsData()) as reader:
                 reader.CurrentResultSet = step_info.Set
                 forces = reader.GetResult('F')
                 fx = fy = fz = 0.0
@@ -322,7 +359,7 @@ class ElasticFoundationReaction():
                 self.result.Properties['ReactSummary/x'].Value = fx
                 self.result.Properties['ReactSummary/y'].Value = fy
                 self.result.Properties['ReactSummary/z'].Value = fz
-                total = sqrt(fx**2 + fy**2 + fz**2)
+                total = math.sqrt(fx**2 + fy**2 + fz**2)
                 self.result.Properties['ReactSummary/total'].Value = total
                 if step_info.Set not in self.steps_completed:
                     writer.writerow([step_info.Set, fx, fy, fz, total])
@@ -330,7 +367,11 @@ class ElasticFoundationReaction():
 
 
 class ElasticFoundationExp(ElasticFoundation):
+    '''
+    Elastic foundation with expression as spring stiffness
+    '''
     def gen_springs(self, solver_data, stream):
+        # pylint: disable=too-many-statements
         stream.WriteLine(
             "/com,*********** Elastic Foundation Expression - {0} ***********"
             .format(self.load.Properties['id'].Value))
