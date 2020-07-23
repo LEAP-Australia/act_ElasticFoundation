@@ -64,7 +64,7 @@
             <property name="Geometry" caption="Geometry" control="scoping">
                 <attributes selection_filter="face|edge|node" />
             </property>
-            <propertygroup name="GrpCustExp" caption="Spring Definition" display="caption">
+            <propertygroup name="SpringDef" caption="Spring Definition" display="caption">
                 <property name="cs" caption="Coordinate System" control="coordinatesystem_selection"/>
                 <property name="unitsys" caption="Expression Units" control="select">
                     <callbacks>

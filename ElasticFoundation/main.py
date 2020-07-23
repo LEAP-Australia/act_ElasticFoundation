@@ -266,7 +266,7 @@ class ElasticFoundationExp(ElasticFoundation):
             self.api,
             1.0,
             AnsUnits.UnitsManager.GetQuantityUnitForUnitSystem(
-                self.load.Properties['GrpCustExp/unitsys'].Value,
+                self.load.Properties['SpringDef/unitsys'].Value,
                 'Stiffness'),
             'Stiffness',
             self.load.Analysis)
@@ -275,13 +275,13 @@ class ElasticFoundationExp(ElasticFoundation):
             1.0,
             mesh.Unit,
             AnsUnits.UnitsManager.GetQuantityUnitForUnitSystem(
-                self.load.Properties['GrpCustExp/unitsys'].Value,
+                self.load.Properties['SpringDef/unitsys'].Value,
                 'Length'),
             'Length')
 
-        x_exp = self.load.Properties['GrpCustExp/DirectionX'].Value
-        y_exp = self.load.Properties['GrpCustExp/DirectionY'].Value
-        z_exp = self.load.Properties['GrpCustExp/DirectionZ'].Value
+        x_exp = self.load.Properties['SpringDef/DirectionX'].Value
+        y_exp = self.load.Properties['SpringDef/DirectionY'].Value
+        z_exp = self.load.Properties['SpringDef/DirectionZ'].Value
 
         for node_id, cnode_id in zip(node_ids, cnode_ids):
             # pylint: disable=invalid-name
